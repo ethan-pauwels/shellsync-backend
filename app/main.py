@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import async_session, get_db
-from app.routers import auth, users, boats, reservations, query  # ⬅️ added query
+from app.routers import auth, users, boats, reservations, query  # already actual routers
 from app.models import Base
 from sqlalchemy.ext.asyncio import AsyncEngine
 from app.database import engine
@@ -18,11 +18,11 @@ app.add_middleware(
 )
 
 # Include all the route modules
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(boats.router)
-app.include_router(reservations.router)
-app.include_router(query.router)  # ⬅️ mount query endpoint
+app.include_router(auth)
+app.include_router(users)
+app.include_router(boats)
+app.include_router(reservations)
+app.include_router(query)  # ✅ no more .router
 
 @app.get("/")
 def read_root():
