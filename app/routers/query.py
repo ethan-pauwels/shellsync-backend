@@ -17,7 +17,8 @@ async def run_query(request: Request):
     try:
         async with async_session() as session:
             result = await session.execute(text(query))
-            rows = [dict(row._mapping) for row in result]
+            rows = result.mappings().all()  # ✅ correct way to fetch dict-style rows
             return {"rows": rows}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # For debugging, you could log this or return it in dev mode
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
