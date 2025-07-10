@@ -46,6 +46,7 @@ class Boat(Base):
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)  # e.g., "single", "double", "quad"
     status = Column(Enum(BoatStatus), default=BoatStatus.available)
+    brand = Column(String, nullable=True)  # ✅ Added this line
     boathouse_id = Column(Integer, ForeignKey("boathouses.id"))
 
     boathouse = relationship("Boathouse", back_populates="boats")

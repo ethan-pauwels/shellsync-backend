@@ -1,0 +1,5 @@
+from passlib.hash import bcrypt
+
+hashed = bcrypt.hash("testpassword")
+print("Hash:", hashed)
+print("Verified:", bcrypt.verify("testpassword", hashed))
