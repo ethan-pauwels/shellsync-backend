@@ -5,11 +5,12 @@ import enum
 
 Base = declarative_base()
 
-# Enum for boat status
+# ✅ Enum for boat status with checked_out added
 class BoatStatus(enum.Enum):
     available = "available"
     reserved = "reserved"
     maintenance = "maintenance"
+    checked_out = "checked_out"  # ✅ This fixes the error in checkout
 
 # Boathouse model
 class Boathouse(Base):
@@ -46,7 +47,7 @@ class Boat(Base):
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)  # e.g., "single", "double", "quad"
     status = Column(Enum(BoatStatus), default=BoatStatus.available)
-    brand = Column(String, nullable=True)  # ✅ Added this line
+    brand = Column(String, nullable=True)
     boathouse_id = Column(Integer, ForeignKey("boathouses.id"))
 
     boathouse = relationship("Boathouse", back_populates="boats")
