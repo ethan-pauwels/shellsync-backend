@@ -8,10 +8,10 @@ from app.database import engine
 
 app = FastAPI(title="ShellSync - Multi-Boathouse Rowing Checkout System")
 
-# CORS middleware for frontend access
+# ✅ Updated CORS middleware for frontend access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://shellsync-frontend.vercel.app"],  # 👈 specific domain only (no "*")
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
