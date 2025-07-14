@@ -1,28 +1,28 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import async_session, get_db
-from app.routers import auth, users, boats, reservations, query  # already actual routers
-from app.models import Base
 from sqlalchemy.ext.asyncio import AsyncEngine
-from app.database import engine
+
+from app.database import async_session, get_db, engine
+from app.models import Base
+from app.routers import auth, users, boats, reservations, query
 
 app = FastAPI(title="ShellSync - Multi-Boathouse Rowing Checkout System")
 
-# ✅ Updated CORS middleware for frontend access
+# ✅ CORS middleware to allow frontend access from Vercel
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://shellsync-frontend.vercel.app"],  # 👈 specific domain only (no "*")
+    allow_origins=["https://shellsync-frontend.vercel.app"],  # allow specific domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include all the route modules
+# ✅ Register all routers
 app.include_router(auth)
 app.include_router(users)
 app.include_router(boats)
 app.include_router(reservations)
-app.include_router(query)  # ✅ no more .router
+app.include_router(query)
 
 @app.get("/")
 def read_root():
