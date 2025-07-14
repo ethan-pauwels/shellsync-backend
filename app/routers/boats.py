@@ -21,15 +21,12 @@ async def get_available_boats(
     boats = result.scalars().all()
     return boats
 
-# Get all boats for the current user's boathouse
+# 🔓 TEMP: Get all boats (no auth) while building login system
 @router.get("")
 async def get_all_boats(
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
 ):
-    result = await db.execute(
-        select(models.Boat).where(models.Boat.boathouse_id == current_user.boathouse_id)
-    )
+    result = await db.execute(select(models.Boat))
     boats = result.scalars().all()
     return boats
 
