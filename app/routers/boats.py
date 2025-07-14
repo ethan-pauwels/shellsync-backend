@@ -1,3 +1,5 @@
+# app/routers/boats.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -7,7 +9,7 @@ from app.utils import get_current_user
 
 router = APIRouter(prefix="/boats", tags=["boats"])
 
-# Get list of available boats for current user's boathouse
+# ✅ Get available boats for current user's boathouse
 @router.get("/available")
 async def get_available_boats(
     db: AsyncSession = Depends(get_db),
@@ -21,7 +23,7 @@ async def get_available_boats(
     boats = result.scalars().all()
     return boats
 
-# 🔓 TEMP: Get all boats (no auth) while building login system
+# 🔓 TEMP: Get all boats (no auth) for dev/testing
 @router.get("")
 async def get_all_boats(
     db: AsyncSession = Depends(get_db),
@@ -30,7 +32,7 @@ async def get_all_boats(
     boats = result.scalars().all()
     return boats
 
-# Admin: add a new boat
+# ✅ Admin: Add a new boat
 @router.post("/")
 async def add_boat(
     name: str,
@@ -47,7 +49,7 @@ async def add_boat(
     await db.refresh(boat)
     return boat
 
-# ✅ Checkout a boat
+# ✅ Member/Admin: Check out a boat
 @router.post("/{boat_id}/checkout")
 async def checkout_boat(
     boat_id: int,
@@ -67,9 +69,9 @@ async def checkout_boat(
 
     boat.status = models.BoatStatus.checked_out
     await db.commit()
-    return {"message": f"Boat {boat.name} checked out successfully"}
+    return {"message": f"Boat '{boat.name}' checked out successfully"}
 
-# ✅ Checkin a boat
+# ✅ Member/Admin: Check in a boat
 @router.post("/{boat_id}/checkin")
 async def checkin_boat(
     boat_id: int,
@@ -89,4 +91,4 @@ async def checkin_boat(
 
     boat.status = models.BoatStatus.available
     await db.commit()
-    return {"message": f"Boat {boat.name} checked in successfully"}
+    return {"message": f"Boat '{boat.name}' checked in successfully"}
