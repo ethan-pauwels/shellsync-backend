@@ -2,10 +2,11 @@
 
 import pandas as pd
 import os
+import traceback
 from dotenv import load_dotenv, find_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models import Base, Boat, User, BoatStatus, Boathouse  # ⬅️ Added Boathouse
+from app.models import Base, Boat, User, BoatStatus, Boathouse
 from passlib.context import CryptContext
 
 # Load environment variables
@@ -17,7 +18,8 @@ print("Loaded DATABASE_URL:", DATABASE_URL)
 DATABASE_URL = DATABASE_URL.replace("+asyncpg", "")
 engine = create_engine(DATABASE_URL + "?sslmode=require", echo=True)
 
-# Create tables
+# 🔥 Drop and recreate all tables
+Base.metadata.drop_all(engine)
 Base.metadata.create_all(engine)
 
 SessionLocal = sessionmaker(bind=engine)
@@ -29,7 +31,7 @@ DEFAULT_PASSWORD = "arc2024"
 boats_df = pd.read_csv("Boat list for Ethan - BOATS.csv")
 members_df = pd.read_csv("Mailing_List-22.csv")
 
-# 🔧 Replace NaN in 'Brand' with None and convert to string
+# 🔧 Clean brand column
 boats_df["Brand"] = boats_df["Brand"].apply(lambda x: str(x).strip() if pd.notna(x) else None)
 
 def seed():
@@ -41,7 +43,7 @@ def seed():
 
     session = SessionLocal()
 
-    # ✅ Seed Boathouse if not exists
+    # ✅ Insert Boathouse if not exists
     existing_boathouse = session.query(Boathouse).filter_by(id=1).first()
     if not existing_boathouse:
         print("📦 Inserting boathouse ID=1 (Austin Rowing Club)")
@@ -57,7 +59,6 @@ def seed():
     # Seed Boats
     for _, row in boats_df.iterrows():
         try:
-            print("Inserting boat:", row["Boat Name"])
             boat = Boat(
                 name=row["Boat Name"],
                 type=row["Type"],
@@ -66,8 +67,10 @@ def seed():
                 boathouse_id=1
             )
             session.add(boat)
-        except Exception as e:
-            print(f"⚠️ Error inserting boat row: {row} — {e}")
+            print(f"✅ Inserted boat: {boat.name}")
+        except Exception:
+            print(f"⚠️ Error inserting boat row: {row}")
+            traceback.print_exc()
 
     # Seed Users
     for _, row in members_df.iterrows():
@@ -75,8 +78,13 @@ def seed():
             email = row.get("Email")
             if pd.isna(email):
                 continue
+
+            # ⏭️ Skip if email already exists
+            if session.query(User).filter_by(email=email).first():
+                print(f"⏭️ Skipping existing user: {email}")
+                continue
+
             full_name = f"{row['First name']} {row['Last name']}"
-            print("Inserting user:", full_name)
             hashed_pw = pwd_context.hash(DEFAULT_PASSWORD)
             user = User(
                 name=full_name,
@@ -86,8 +94,10 @@ def seed():
                 boathouse_id=1
             )
             session.add(user)
-        except Exception as e:
-            print(f"⚠️ Error inserting user row: {row} — {e}")
+            print(f"✅ Inserted user: {user.email}")
+        except Exception:
+            print(f"⚠️ Error inserting user row: {row}")
+            traceback.print_exc()
 
     session.commit()
 
