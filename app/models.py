@@ -6,11 +6,11 @@ import enum
 Base = declarative_base()
 
 # ✅ Enum for boat status with checked_out added
-class BoatStatus(enum.Enum):
+class BoatStatus(str, enum.Enum):  # 🔄 Use str + Enum to prevent coercion issues
     available = "available"
     reserved = "reserved"
     maintenance = "maintenance"
-    checked_out = "checked_out"  # ✅ This fixes the error in checkout
+    checked_out = "checked_out"
 
 # Boathouse model
 class Boathouse(Base):
@@ -46,7 +46,7 @@ class Boat(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)  # e.g., "single", "double", "quad"
-    status = Column(Enum(BoatStatus), default=BoatStatus.available)
+    status = Column(Enum(BoatStatus, name="boatstatus"), default=BoatStatus.available)  # ✅ Match DB enum name
     brand = Column(String, nullable=True)
     boathouse_id = Column(Integer, ForeignKey("boathouses.id"))
 
