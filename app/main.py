@@ -8,11 +8,12 @@ from app.routers import auth, users, boats, reservations, query
 
 app = FastAPI(title="ShellSync - Multi-Boathouse Rowing Checkout System")
 
-# ✅ CORS middleware to allow frontend access from Vercel (correct deployment URL)
+# ✅ CORS middleware to allow both deployed and preview Vercel frontend URLs
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://shellsync-frontend-f4hejs116-ethan-pauwels-projects.vercel.app"
+        "https://shellsync-frontend.vercel.app",  # main deployed frontend
+        "https://shellsync-frontend-f4hejs116-ethan-pauwels-projects.vercel.app",  # Vercel preview/staging
     ],
     allow_credentials=True,
     allow_methods=["*"],
