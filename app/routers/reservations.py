@@ -38,7 +38,7 @@ async def create_reservation(
     if boat.status != models.BoatStatus.available:
         raise HTTPException(status_code=400, detail="Boat not available")
 
-    # Create reservation (no longer modify boat.status)
+    # Create reservation
     reservation = models.Reservation(
         user_id=current_user.id,
         boat_id=req.boat_id,
@@ -83,10 +83,38 @@ async def cancel_reservation(
 
     reservation.status = "cancelled"
 
-    # Optional: Free up boat status (may be removed in future if not used)
     boat = await db.get(models.Boat, reservation.boat_id)
     if boat:
         boat.status = models.BoatStatus.available
 
     await db.commit()
     return {"detail": "Reservation cancelled"}
+
+# ✅ NEW: View all upcoming reservations at user's boathouse
+@router.get("/upcoming")
+async def get_upcoming_reservations(
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    now = datetime.utcnow()
+    result = await db.execute(
+        select(models.Reservation, models.Boat)
+        .join(models.Boat, models.Reservation.boat_id == models.Boat.id)
+        .where(models.Reservation.boathouse_id == current_user.boathouse_id)
+        .where(models.Reservation.status == "confirmed")
+        .where(models.Reservation.start_time > now)
+        .order_by(models.Reservation.start_time)
+    )
+    reservations = result.all()
+
+    return [
+        {
+            "reservation_id": res.id,
+            "boat_id": res.boat_id,
+            "boat_name": boat.name,
+            "boat_type": boat.type,
+            "start_time": res.start_time,
+            "end_time": res.end_time
+        }
+        for res, boat in reservations
+    ]
