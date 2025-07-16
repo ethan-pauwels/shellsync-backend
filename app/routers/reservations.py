@@ -38,7 +38,7 @@ async def create_reservation(
     if boat.status != models.BoatStatus.available:
         raise HTTPException(status_code=400, detail="Boat not available")
 
-    # Create reservation
+    # Create reservation (no longer modify boat.status)
     reservation = models.Reservation(
         user_id=current_user.id,
         boat_id=req.boat_id,
@@ -47,7 +47,6 @@ async def create_reservation(
         end_time=end,
         status="confirmed"
     )
-    boat.status = models.BoatStatus.reserved
     db.add(reservation)
     await db.commit()
     await db.refresh(reservation)
@@ -84,7 +83,7 @@ async def cancel_reservation(
 
     reservation.status = "cancelled"
 
-    # Optional: Free up boat status
+    # Optional: Free up boat status (may be removed in future if not used)
     boat = await db.get(models.Boat, reservation.boat_id)
     if boat:
         boat.status = models.BoatStatus.available
