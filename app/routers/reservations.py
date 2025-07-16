@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from datetime import datetime
@@ -8,11 +9,30 @@ from app.utils import get_current_user
 
 router = APIRouter(prefix="/reservations", tags=["reservations"])
 
+# 🚀 Define the request model
+class ReservationRequest(BaseModel):
+    boat_id: int
+    start_time: datetime
+    end_time: datetime
+
 # Rower creates a reservation
 @router.post("/")
-async def create_reservation(boat_id: int, start_time: datetime, end_time: datetime, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+async def create_reservation(
+    req: ReservationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # Extract values from request body
+    boat_id = req.boat_id
+    start_time = req.start_time
+    end_time = req.end_time
+
     # Check boat exists and is available
-    result = await db.execute(select(models.Boat).where(models.Boat.id == boat_id).where(models.Boat.boathouse_id == current_user.boathouse_id))
+    result = await db.execute(
+        select(models.Boat)
+        .where(models.Boat.id == boat_id)
+        .where(models.Boat.boathouse_id == current_user.boathouse_id)
+    )
     boat = result.scalars().first()
     if not boat:
         raise HTTPException(status_code=404, detail="Boat not found")
@@ -36,7 +56,10 @@ async def create_reservation(boat_id: int, start_time: datetime, end_time: datet
 
 # View current user's reservations
 @router.get("/me")
-async def get_my_reservations(db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+async def get_my_reservations(
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     result = await db.execute(
         select(models.Reservation)
         .where(models.Reservation.user_id == current_user.id)
@@ -46,8 +69,16 @@ async def get_my_reservations(db: AsyncSession = Depends(get_db), current_user: 
 
 # Cancel a reservation
 @router.delete("/{reservation_id}")
-async def cancel_reservation(reservation_id: int, db: AsyncSession = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    result = await db.execute(select(models.Reservation).where(models.Reservation.id == reservation_id, models.Reservation.user_id == current_user.id))
+async def cancel_reservation(
+    reservation_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(models.Reservation)
+        .where(models.Reservation.id == reservation_id)
+        .where(models.Reservation.user_id == current_user.id)
+    )
     reservation = result.scalars().first()
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
