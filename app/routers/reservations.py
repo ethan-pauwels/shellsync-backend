@@ -22,15 +22,14 @@ async def create_reservation(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # Extract values from request body
-    boat_id = req.boat_id
-    start_time = req.start_time
-    end_time = req.end_time
+    # Convert aware datetime to naive UTC
+    start = req.start_time.astimezone().replace(tzinfo=None)
+    end = req.end_time.astimezone().replace(tzinfo=None)
 
     # Check boat exists and is available
     result = await db.execute(
         select(models.Boat)
-        .where(models.Boat.id == boat_id)
+        .where(models.Boat.id == req.boat_id)
         .where(models.Boat.boathouse_id == current_user.boathouse_id)
     )
     boat = result.scalars().first()
@@ -42,10 +41,10 @@ async def create_reservation(
     # Create reservation
     reservation = models.Reservation(
         user_id=current_user.id,
-        boat_id=boat_id,
+        boat_id=req.boat_id,
         boathouse_id=current_user.boathouse_id,
-        start_time=start_time,
-        end_time=end_time,
+        start_time=start,
+        end_time=end,
         status="confirmed"
     )
     boat.status = models.BoatStatus.reserved
