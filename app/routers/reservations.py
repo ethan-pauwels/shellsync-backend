@@ -38,7 +38,18 @@ async def create_reservation(
     if boat.status != models.BoatStatus.available:
         raise HTTPException(status_code=400, detail="Boat not available")
 
-    # Create reservation
+    # 🚫 Check for overlapping reservations
+    overlap_result = await db.execute(
+        select(models.Reservation)
+        .where(models.Reservation.boat_id == req.boat_id)
+        .where(models.Reservation.status == "confirmed")
+        .where(models.Reservation.start_time < end)
+        .where(models.Reservation.end_time > start)
+    )
+    if overlap_result.scalars().first():
+        raise HTTPException(status_code=409, detail="Boat already reserved during this time window.")
+
+    # ✅ Create reservation
     reservation = models.Reservation(
         user_id=current_user.id,
         boat_id=req.boat_id,
@@ -90,7 +101,7 @@ async def cancel_reservation(
     await db.commit()
     return {"detail": "Reservation cancelled"}
 
-# ✅ NEW: View all upcoming reservations at user's boathouse
+# ✅ View all upcoming reservations at user's boathouse
 @router.get("/upcoming")
 async def get_upcoming_reservations(
     db: AsyncSession = Depends(get_db),
