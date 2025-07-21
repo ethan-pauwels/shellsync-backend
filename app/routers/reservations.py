@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from datetime import datetime, timezone
+from dateutil.tz import tzlocal
 from app.database import get_db
 from app import models
 from app.utils import get_current_user
@@ -22,11 +23,16 @@ async def create_reservation(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # Convert aware datetime to naive UTC
-    start = req.start_time.astimezone(timezone.utc).replace(tzinfo=None)
-    end = req.end_time.astimezone(timezone.utc).replace(tzinfo=None)
+    # Handle naive datetime from frontend and convert to UTC
+    start = req.start_time
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=tzlocal())
+    start = start.astimezone(timezone.utc)
 
-
+    end = req.end_time
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=tzlocal())
+    end = end.astimezone(timezone.utc)
 
     # Check boat exists and is available
     result = await db.execute(
