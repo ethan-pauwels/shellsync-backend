@@ -23,8 +23,9 @@ async def create_reservation(
     current_user: models.User = Depends(get_current_user)
 ):
     # Convert aware datetime to naive UTC
-    start = req.start_time.astimezone(timezone.utc)
-    end = req.end_time.astimezone(timezone.utc)
+    start = req.start_time.astimezone(timezone.utc).replace(tzinfo=None)
+    end = req.end_time.astimezone(timezone.utc).replace(tzinfo=None)
+
 
 
     # Check boat exists and is available
