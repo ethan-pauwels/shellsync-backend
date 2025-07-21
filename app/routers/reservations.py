@@ -23,7 +23,7 @@ async def create_reservation(
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # Handle naive datetime from frontend and convert to UTC
+    # Handle naive datetime from frontend and convert to aware UTC
     start = req.start_time
     if start.tzinfo is None:
         start = start.replace(tzinfo=tzlocal())
@@ -33,6 +33,10 @@ async def create_reservation(
     if end.tzinfo is None:
         end = end.replace(tzinfo=tzlocal())
     end = end.astimezone(timezone.utc)
+
+    # Convert to naive UTC for SQLAlchemy/Postgres comparison
+    naive_start = start.replace(tzinfo=None)
+    naive_end = end.replace(tzinfo=None)
 
     # Check boat exists and is available
     result = await db.execute(
@@ -51,8 +55,8 @@ async def create_reservation(
         select(models.Reservation)
         .where(models.Reservation.boat_id == req.boat_id)
         .where(models.Reservation.status == "confirmed")
-        .where(models.Reservation.start_time < end)
-        .where(models.Reservation.end_time > start)
+        .where(models.Reservation.start_time < naive_end)
+        .where(models.Reservation.end_time > naive_start)
     )
     if overlap_result.scalars().first():
         raise HTTPException(status_code=409, detail="Boat already reserved during this time window.")
@@ -62,8 +66,8 @@ async def create_reservation(
         user_id=current_user.id,
         boat_id=req.boat_id,
         boathouse_id=current_user.boathouse_id,
-        start_time=start,
-        end_time=end,
+        start_time=naive_start,
+        end_time=naive_end,
         status="confirmed"
     )
     db.add(reservation)
