@@ -144,3 +144,26 @@ async def delete_boat(
     await db.delete(boat)
     await db.commit()
     return {"message": f"Boat '{boat.name}' has been deleted."}
+
+# ✅ Admin/Coach: Mark broken boat as fixed (set status to 'available')
+@router.post("/{boat_id}/mark-fixed")
+async def mark_boat_fixed(
+    boat_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role not in ("admin", "coach"):
+        raise HTTPException(status_code=403, detail="Only coaches or admins can mark boats as fixed")
+
+    result = await db.execute(
+        select(models.Boat)
+        .where(models.Boat.id == boat_id)
+        .where(models.Boat.boathouse_id == current_user.boathouse_id)
+    )
+    boat = result.scalar_one_or_none()
+    if not boat:
+        raise HTTPException(status_code=404, detail="Boat not found")
+
+    boat.status = BoatStatus.available
+    await db.commit()
+    return {"message": f"Boat '{boat.name}' marked as fixed"}
