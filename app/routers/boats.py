@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from datetime import datetime  # ✅ Needed for reservation conflict logic
+from datetime import datetime
 from app.database import get_db
 from app import models
 from app.utils import get_current_user
+from app.models import BoatStatus  # ✅ Import enum for type safety
 
 router = APIRouter(prefix="/boats", tags=["boats"])
 
@@ -23,7 +24,7 @@ async def get_available_boats(
     return boats
 
 # 🔓 TEMP: Get all boats (no auth) for dev/testing
-@router.get("/")  # ✅ Fix for /boats returning 404
+@router.get("/")
 async def get_all_boats(
     db: AsyncSession = Depends(get_db),
 ):
@@ -66,7 +67,6 @@ async def checkout_boat(
     if boat.status != models.BoatStatus.available:
         raise HTTPException(status_code=400, detail="Boat not available")
 
-    # ✅ Check if the boat has a current reservation
     now = datetime.utcnow()
     conflict = await db.execute(
         select(models.Reservation)
@@ -103,3 +103,44 @@ async def checkin_boat(
     boat.status = models.BoatStatus.available
     await db.commit()
     return {"message": f"Boat '{boat.name}' checked in successfully"}
+
+# ✅ Admin: Update boat status (used by admin dashboard dropdown)
+@router.patch("/{boat_id}")
+async def update_boat_status(
+    boat_id: int,
+    status: BoatStatus = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(models.Boat)
+        .where(models.Boat.id == boat_id)
+        .where(models.Boat.boathouse_id == current_user.boathouse_id)
+    )
+    boat = result.scalar_one_or_none()
+    if not boat:
+        raise HTTPException(status_code=404, detail="Boat not found")
+
+    boat.status = status
+    await db.commit()
+    return {"message": f"Boat status updated to '{status}'"}
+
+# ✅ Admin: Delete boat (used by admin dashboard delete modal)
+@router.delete("/{boat_id}")
+async def delete_boat(
+    boat_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(models.Boat)
+        .where(models.Boat.id == boat_id)
+        .where(models.Boat.boathouse_id == current_user.boathouse_id)
+    )
+    boat = result.scalar_one_or_none()
+    if not boat:
+        raise HTTPException(status_code=404, detail="Boat not found")
+
+    await db.delete(boat)
+    await db.commit()
+    return {"message": f"Boat '{boat.name}' has been deleted."}
