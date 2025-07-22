@@ -45,7 +45,7 @@ async def create_user(
 
 # ✅ Get current user from token
 from fastapi.security import OAuth2PasswordBearer
-from app.utils import get_current_user
+from app.utils import get_current_user, get_current_admin
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -70,3 +70,41 @@ async def promote_me(db: AsyncSession = Depends(get_db)):
     user.role = "admin"
     await db.commit()
     return {"message": f"{user.email} promoted to admin"}
+
+
+# ✅ NEW: Get all users (admin only)
+@router.get("/")
+async def get_all_users(
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin)
+):
+    result = await db.execute(select(models.User))
+    users = result.scalars().all()
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "boathouse_id": u.boathouse_id,
+            "role": u.role
+        }
+        for u in users
+    ]
+
+# ✅ NEW: Update user role (admin only)
+@router.patch("/{user_id}")
+async def update_user_role(
+    user_id: int,
+    role: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin)
+):
+    result = await db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.role = role
+    await db.commit()
+    await db.refresh(user)
+    return {"message": f"{user.email} role updated to {role}"}
