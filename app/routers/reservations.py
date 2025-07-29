@@ -16,6 +16,11 @@ class ReservationRequest(BaseModel):
     start_time: datetime
     end_time: datetime
 
+# 🆕 Request model for rescheduling
+class RescheduleRequest(BaseModel):
+    start_time: datetime
+    end_time: datetime
+
 # Rower creates a reservation
 @router.post("/")
 async def create_reservation(
@@ -84,6 +89,7 @@ async def get_my_reservations(
     result = await db.execute(
         select(models.Reservation)
         .where(models.Reservation.user_id == current_user.id)
+        .where(models.Reservation.status == "confirmed")
         .order_by(models.Reservation.start_time.desc())
     )
     return result.scalars().all()
@@ -141,3 +147,49 @@ async def get_upcoming_reservations(
         }
         for res, boat in reservations
     ]
+
+# 🔁 Reschedule a reservation
+@router.patch("/{reservation_id}")
+async def reschedule_reservation(
+    reservation_id: int,
+    req: RescheduleRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # Convert times to UTC
+    start = req.start_time
+    end = req.end_time
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=tzlocal())
+    start = start.astimezone(timezone.utc).replace(tzinfo=None)
+
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=tzlocal())
+    end = end.astimezone(timezone.utc).replace(tzinfo=None)
+
+    result = await db.execute(
+        select(models.Reservation)
+        .where(models.Reservation.id == reservation_id)
+        .where(models.Reservation.user_id == current_user.id)
+        .where(models.Reservation.status == "confirmed")
+    )
+    reservation = result.scalars().first()
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # ✅ Check for conflicts
+    overlap_result = await db.execute(
+        select(models.Reservation)
+        .where(models.Reservation.boat_id == reservation.boat_id)
+        .where(models.Reservation.status == "confirmed")
+        .where(models.Reservation.id != reservation_id)
+        .where(models.Reservation.start_time < end)
+        .where(models.Reservation.end_time > start)
+    )
+    if overlap_result.scalars().first():
+        raise HTTPException(status_code=409, detail="New time conflicts with an existing reservation.")
+
+    reservation.start_time = start
+    reservation.end_time = end
+    await db.commit()
+    return {"detail": "Reservation rescheduled"}
